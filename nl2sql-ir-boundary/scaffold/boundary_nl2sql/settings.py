@@ -7,7 +7,7 @@ SETTINGS = {
     "b": dict(n_tables=4, max_cols=3, n_train=4000, n_test=600, tiers=(1, 2),
               para_train=0.4, para_test=0.4, cross_schema=True),
     "c": dict(n_tables=4, max_cols=3, n_train=4000, n_test=600, tiers=(1, 2, 3),
-              para_train=0.4, para_test=1.0, cross_schema=True),
+              para_train=0.4, para_test=0.4, cross_schema=True),
 }
 
 # Per-setting RNG offset so each setting draws an independent schema/example

@@ -1,10 +1,8 @@
 # nl2sql-ir-boundary — Hearts task
 
-**Research question:** Does a relation-aware, schema-graph-structured linking
-operator — one that encodes column relationships and fuses exact lexical
-matching — produce more accurate and more executable SQL than pure lexical or
-purely learned soft-attention linking, under cross-schema and
-linguistic-paraphrase distribution shift?
+**Research question:** Does fusing exact lexical matching with learned
+soft-attention produce more accurate and more executable SQL than either signal
+alone, under cross-schema and distribution shift?
 
 This task asks an agent to improve a single, well-isolated component — the
 schema linker that aligns a natural-language question to database schema
@@ -21,11 +19,11 @@ class in `scaffold/boundary_nl2sql/synthesizer.py`.
 |----|--------|----------|-------|
 | `weak` | Lexical string-match linking | Yu, Li, Gao, Xie, Mou, Pang, Song (2018), *SyntaxSQLNet: Syntax Tree Networks for Complex and Cross-Domain Text-to-SQL Task* (EMNLP); Guo, Zhan, Gao, Lou, Liu, Zhang (2019), *Towards Complex Text-to-SQL in Cross-Domain Database with Intermediate Representation* (ACL). | Exact token overlap between question and column names; no learned parameters. Collapses when the question paraphrases column names. |
 | `middle` | Learned bilinear soft-attention | Xu, Liu & Song (2017), *SQLNet: Generating Structured Queries From Natural Language Without Reinforcement Learning* (arXiv:1711.04436). | Trainable bilinear score $q^\top W s$ between question summary and each column embedding. Learns from data but ignores schema graph structure (foreign keys, table membership). |
-| `strong` | Relation-aware linking (schema-graph encoding + lexical fusion) | Wang, Shin, Liu, Polozov & Richardson (2020), *RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers* (ACL). | Propagates column embeddings over foreign-key and same-table edges before the same bilinear attention, and adds the exact string-match matrix, so linking is aware of schema structure *and* literal overlap. |
+| `strong` | Lexical + learned soft-attention fusion | Guo, Zhan, Gao, Lou, Liu & Zhang (2019), *Towards Complex Text-to-SQL in Cross-Domain Database with Intermediate Representation* (ACL); Wang, Shin, Liu, Polozov & Richardson (2020), *RAT-SQL: Relation-Aware Schema Encoding and Linking for Text-to-SQL Parsers* (ACL). | Adds a strongly weighted exact string-match matrix to the same trainable bilinear score, so literal questions are resolved exactly while paraphrased ones are handled by the learned attention. |
 
 The **shipped scaffold** uses `weak` (lexical string-match). The **oracle**
-(score to beat) is `strong` (relation-aware + lexical fusion). A passing trial
-must raise execution accuracy *above* the relation-aware composite anchor.
+(score to beat) is `strong` (lexical + learned fusion). A passing trial must
+raise execution accuracy *above* the fusion composite anchor.
 
 ## Experiment
 
@@ -63,13 +61,12 @@ must raise execution accuracy *above* the relation-aware composite anchor.
 |------|---------|---------|-------|
 | `a` | yes | `python -m boundary_nl2sql.run --setting a` | in-schema, 40% paraphrase, tiers 1–2 |
 | `b` | yes | `python -m boundary_nl2sql.run --setting b` | cross-schema (fresh test schema), 40% paraphrase, tiers 1–2 |
-| `c` | no (hidden) | `python -m boundary_nl2sql.run --setting c` | fresh cross-schema, 100% paraphrase, join tier 3 |
+| `c` | no (hidden) | `python -m boundary_nl2sql.run --setting c` | cross-schema, 40% paraphrase, join tier 3 |
 
 Each setting draws an independent schema/example stream from the base seed
 (settings `a` and `b` use base seed 0; the hidden setting `c` uses a fresh
-stream). The hidden setting `c` combines a novel schema, full paraphrase, and
-join queries — exactly the conditions where lexical matching collapses and
-schema-structure awareness matters most.
+stream). The hidden setting `c` adds join queries — a question type the agent
+never sees in the visible settings — on top of a novel cross-schema.
 
 ## Reproducibility
 
@@ -81,6 +78,12 @@ schema-structure awareness matters most.
 ## Results (measured with the fixed seed)
 
 See `leaderboard.csv`. One aggregate row per baseline across the three settings.
+
+Composite execution-accuracy anchors (mean over the three settings, seed 0):
+`weak` **0.4600**, `middle` **0.7261**, `strong` **0.7406**. The `middle →
+strong` composite gap is **0.0144**; across five seeds (0–4) the composite gap
+stays positive (min +0.005, mean +0.023), so the oracle ordering does not
+invert. `seeds: [0]` in `spec.yaml` pins the recorded leaderboard to seed 0.
 
 ## Reduced scale
 

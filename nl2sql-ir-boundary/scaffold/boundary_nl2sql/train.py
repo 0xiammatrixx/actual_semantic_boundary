@@ -21,7 +21,9 @@ def _lexical(ids, match_lookup):
 
 
 def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
-                   d=96, n_tables=4, epochs=25, batch=64, lr=1e-3, seed=0):
+                   d=96, n_tables=None, epochs=25, batch=64, lr=1e-3, seed=0):
+    if n_tables is None:
+        n_tables = train_schema.n_tables
     torch.manual_seed(seed)
     inv = {v: k for k, v in vocab.items()}
 
@@ -64,7 +66,7 @@ def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
         q_mask = (ids != 0).float()
         q_sum = (q_repr * q_mask.unsqueeze(2)).sum(1) / q_mask.sum(1, keepdim=True).clamp(min=1)
         lexical = _lexical(ids, ml)
-        relevance = linker.build(q_sum, schema_repr, sg, lexical)
+        relevance = linker.build(q_sum, schema_repr, sg, lexical, q_repr, q_mask)
         return dec(relevance, q_sum, toc, n_tables)
 
     lossfn = nn.CrossEntropyLoss()

@@ -6,7 +6,7 @@ task_id: nl2sql-ir-boundary
 # It covers the `SchemaLinker` class in the scaffold package.
 lever:
   file: boundary_nl2sql/synthesizer.py
-  edit: [32, 47]
+  edit: [32, 49]
 
 # Metrics printed by every setting on a single "TEST_METRICS:" line.
 # Primary metric first, secondary metric second. Higher is better for both.

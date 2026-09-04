@@ -20,6 +20,17 @@ tensor of linking/relevance scores (B = batch size, S = number of schema
 columns). The fixed decoder selects the highest-scoring column and table to
 construct the SQL query.
 
+The `build` method receives:
+
+- `q_sum` `[B, d]` — the mean-pooled question summary from the fixed encoder.
+- `schema_repr` `[S, d]` — the column-name embeddings from the fixed encoder.
+- `schema_graph` — read-only schema view: column names, table membership
+  (`table_of_column`), and foreign-key edges (`fk_edges`).
+- `lexical` `[B, S]` — binary exact string-match matrix (question token ==
+  column-name token).
+- `q_repr` `[B, L, d]` — per-token question embeddings from the fixed encoder.
+- `q_mask` `[B, L]` — float mask (1 for real tokens, 0 for padding).
+
 The decoder selects three things from the linker's scores and the question:
 
 - **table** — the database table of the query (highest-scoring table).
