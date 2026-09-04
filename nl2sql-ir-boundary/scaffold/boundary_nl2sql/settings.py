@@ -1,5 +1,4 @@
 """The three fixed evaluation settings."""
-import random
 
 
 SETTINGS = {
@@ -11,6 +10,11 @@ SETTINGS = {
               para_train=0.4, para_test=1.0, cross_schema=True),
 }
 
+# Per-setting RNG offset so each setting draws an independent schema/example
+# stream from the same base seed. Settings `a` and `b` keep base seed 0; the
+# hidden setting `c` uses a fresh stream instead of reusing `b`'s schema pair.
+_OFFSETS = {"a": 0, "b": 0, "c": 1}
+
 
 def build_setting(name, seed=0):
     """Return (train_schema, test_schema, train_ex, test_ex, conn, vocab)."""
@@ -18,7 +22,7 @@ def build_setting(name, seed=0):
     from .data_gen import (make_schema, gen_examples, make_db, build_vocab)
 
     cfg = SETTINGS[name]
-    rng = _random.Random(seed)
+    rng = _random.Random(seed + _OFFSETS.get(name, 0))
     train_schema = make_schema(rng, cfg["n_tables"], cfg["max_cols"])
     # cross-schema: draw a fresh schema with different tables/columns for test
     test_schema = (make_schema(rng, cfg["n_tables"], cfg["max_cols"])

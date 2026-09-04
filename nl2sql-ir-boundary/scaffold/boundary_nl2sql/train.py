@@ -100,7 +100,7 @@ def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
                 cm += (pt[j].item() == g["table"] and ps[j].item() == g["select"]
                        and pa[j].item() == AGGS.index(g["agg"]))
                 pred_sql = compile_sql(test_schema, pt[j].item(), ps[j].item(),
-                                       AGGS[pa[j].item()], g["join"])
+                                       AGGS[pa[j].item()], g["join"], g.get("meas"))
                 gold_res = execute(ex["sql"], conn)
                 pred_res = execute(pred_sql, conn)
                 ea += (gold_res is not None and pred_res == gold_res)

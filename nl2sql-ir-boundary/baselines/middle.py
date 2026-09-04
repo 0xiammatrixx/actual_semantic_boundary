@@ -1,8 +1,3 @@
-"""Middle baseline: learned bilinear soft-attention linking."""
-import torch
-import torch.nn as nn
-
-
 class SchemaLinker(nn.Module):
     """Learned bilinear soft-attention linking.
 

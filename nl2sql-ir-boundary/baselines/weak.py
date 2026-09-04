@@ -1,8 +1,3 @@
-"""Weak baseline: lexical string-match linking (shipped in the scaffold)."""
-import torch
-import torch.nn as nn
-
-
 class SchemaLinker(nn.Module):
     """Lexical string-match linking.
 

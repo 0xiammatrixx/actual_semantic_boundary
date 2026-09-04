@@ -58,9 +58,10 @@ class Schema:
 
 def make_schema(rng, n_tables=4, max_cols=3):
     """Build a schema with globally-unique column names (so lexical match is
-    unambiguous on literal questions)."""
+    unambiguous on literal questions). Each table is guaranteed at least one
+    INTEGER non-id column so sum/avg/max/min queries have a numeric measure."""
     tables = rng.sample(TABLES, n_tables)
-    columns, used, pks = [], set(), {}
+    columns, used, pks, has_int = [], set(), {}, set()
     for t in range(n_tables):
         pk = tables[t].rstrip("s") + "_id"
         columns.append({"table": t, "name": pk, "type": "INT"})
@@ -69,8 +70,11 @@ def make_schema(rng, n_tables=4, max_cols=3):
             if cname in used:
                 continue
             used.add(cname)
-            columns.append({"table": t, "name": cname,
-                            "type": "INT" if rng.random() < 0.5 else "TEXT"})
+            force_int = t not in has_int
+            typ = "INT" if (force_int or rng.random() < 0.5) else "TEXT"
+            if typ == "INT":
+                has_int.add(t)
+            columns.append({"table": t, "name": cname, "type": typ})
     fks = []
     for t in range(1, n_tables):
         parent = rng.randint(0, t - 1)
@@ -79,6 +83,14 @@ def make_schema(rng, n_tables=4, max_cols=3):
         columns.append({"table": t, "name": fk, "type": "INT"})
         fks.append((child, pks[parent]))
     return Schema(tables, columns, fks)
+
+
+def measure_col(schema, t):
+    """Deterministic INTEGER non-id measure column of table `t` (used as the
+    aggregated column of sum/avg/max/min group-by queries)."""
+    return next(i for i in schema.cols_of(t)
+                if not schema.name_of_col[i].endswith("_id")
+                and schema.columns[i]["type"] == "INT")
 
 
 def _para(rng, q, prob):
@@ -109,20 +121,21 @@ def gen_examples(rng, schema, n, tiers, para_prob):
             sql = f"SELECT {seln} FROM {tn}"
             gold = dict(table=t, join=None, select=sel, agg="none")
         elif tier == 2:
-            grp = rng.choice(cols)
             agg = rng.choice(["count", "sum", "avg", "max", "min"])
-            grpn = schema.name_of_col[grp]
+            meas = measure_col(schema, t)
             if agg == "count":
+                grp = rng.choice(cols)
+                grpn = schema.name_of_col[grp]
                 q = f"how many {tn} are there grouped by {grpn}"
                 sql = f"SELECT count(*) FROM {tn} GROUP BY {grpn}"
-                sel, sel_agg = grp, "count"
+                gold = dict(table=t, join=None, select=grp, agg="count")
             else:
-                other = rng.choice([c for c in cols if c != grp])
-                on = schema.name_of_col[other]
-                q = f"what is the {agg} {on} of {tn} grouped by {grpn}"
-                sql = f"SELECT {agg}({on}) FROM {tn} GROUP BY {grpn}"
-                sel, sel_agg = other, agg
-            gold = dict(table=t, join=None, select=sel, agg=sel_agg)
+                grp = rng.choice([c for c in cols if c != meas])
+                grpn = schema.name_of_col[grp]
+                measn = schema.name_of_col[meas]
+                q = f"what is the {agg} {measn} of {tn} grouped by {grpn}"
+                sql = f"SELECT {agg}({measn}) FROM {tn} GROUP BY {grpn}"
+                gold = dict(table=t, join=None, select=grp, agg=agg, meas=meas)
         else:
             fk_opts = [(c, p) for (c, p) in schema.fks if schema.table_of_col[c] == t]
             if not fk_opts:
@@ -130,13 +143,14 @@ def gen_examples(rng, schema, n, tiers, para_prob):
             child, pk = rng.choice(fk_opts)
             t2 = schema.table_of_col[pk]
             t2n = schema.tables[t2]
-            seln = schema.name_of_col[child]
+            sel = rng.choice(cols)  # regular non-id column of t; the join is given
+            seln = schema.name_of_col[sel]
             child_name = schema.name_of_col[child]
             pk_name = schema.name_of_col[pk]
             q = f"what is the {seln} of {tn} joined with {t2n}"
             sql = (f"SELECT {tn}.{seln} FROM {tn} JOIN {t2n} ON "
                    f"{tn}.{child_name} = {t2n}.{pk_name}")
-            gold = dict(table=t, join=t2, select=child, agg="none")
+            gold = dict(table=t, join=t2, select=sel, agg="none")
         q = _para(rng, q, para_prob)
         exs.append(dict(q=q, tokens=tok(q), gold=gold, sql=sql))
     return exs
@@ -175,10 +189,16 @@ def execute(sql, conn):
         return None
 
 
-def compile_sql(schema, table, sel, agg, join):
+def compile_sql(schema, table, sel, agg, join, meas=None):
     tn = schema.tables[table]
     seln = schema.name_of_col[sel]
-    select = seln if agg == "none" else ("count(*)" if agg == "count" else f"{agg}({seln})")
+    if agg == "none":
+        select = seln
+    elif agg == "count":
+        select = "count(*)"
+    else:
+        measn = schema.name_of_col[meas] if meas is not None else seln
+        select = f"{agg}({measn})"
     sql = f"SELECT {select} FROM {tn}"
     if join is not None:
         t2n = schema.tables[join]
@@ -186,7 +206,7 @@ def compile_sql(schema, table, sel, agg, join):
             if schema.table_of_col[c] == table and schema.table_of_col[p] == join:
                 sql += f" JOIN {t2n} ON {tn}.{schema.name_of_col[c]} = {t2n}.{schema.name_of_col[p]}"
                 break
-    if agg not in ("none", "count"):
+    if agg != "none":
         sql += f" GROUP BY {seln}"
     return sql
 
@@ -203,6 +223,7 @@ def build_vocab():
     for syns in SYNONYMS.values():
         for w in syns:
             add(w)
-    for w in ("what is the of how many are there grouped by joined with and a an to per").split():
+    for w in ("what is the of how many are there grouped by joined with and a an to per "
+              "sum avg max min").split():
         add(w)
     return v

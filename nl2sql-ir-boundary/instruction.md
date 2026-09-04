@@ -20,6 +20,16 @@ tensor of linking/relevance scores (B = batch size, S = number of schema
 columns). The fixed decoder selects the highest-scoring column and table to
 construct the SQL query.
 
+The decoder selects three things from the linker's scores and the question:
+
+- **table** — the database table of the query (highest-scoring table).
+- **column** — the highest-scoring schema column. What this column means
+  depends on the question tier: for a plain select it is the `SELECT` column;
+  for an aggregate/group-by question it is the **`GROUP BY` column** (the
+  aggregated *measure* column is fixed per table); for a join question it is a
+  regular `SELECT` column of the named table (the join target is given).
+- **aggregation** — `none` / `count` / `sum` / `avg` / `max` / `min`.
+
 You may **not** change anything else: the encoder, the decoder, the optimizer,
 the learning rate, the number of epochs, the data generator, or the evaluator.
 
