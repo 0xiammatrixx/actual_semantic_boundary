@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Archives (the source is committed directly)
+*.zip
+
+# OS
+.DS_Store
+
+# Development scratch (not part of the task bundle)
+proto.py
+measure.py
+measure_results.txt
+results.txt

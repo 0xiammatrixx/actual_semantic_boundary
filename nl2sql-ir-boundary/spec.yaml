@@ -1,0 +1,47 @@
+# nl2sql-ir-boundary task specification.
+# `task_id` must match the folder name (lowercase kebab-case).
+task_id: nl2sql-ir-boundary
+
+# The single editable range: one file, one 1-indexed inclusive line range.
+# It covers the `SchemaLinker` class in the scaffold package.
+lever:
+  file: boundary_nl2sql/synthesizer.py
+  edit: [32, 47]
+
+# Metrics printed by every setting on a single "TEST_METRICS:" line.
+# Primary metric first, secondary metric second. Higher is better for both.
+metrics:
+  - name: execution_accuracy
+    direction: higher
+  - name: component_match
+    direction: higher
+
+# Fixed evaluation settings. Each is one command run from scaffold/.
+# At least one setting must be hidden (tests a real shift).
+settings:
+  - name: a
+    command: "python -m boundary_nl2sql.run --setting a"
+    hidden: false
+  - name: b
+    command: "python -m boundary_nl2sql.run --setting b"
+    hidden: false
+  - name: c
+    command: "python -m boundary_nl2sql.run --setting c"
+    hidden: true
+
+# Baselines reproduced inside the editable range, weakest to strongest.
+# The scaffold ships `weak`; `strong` is the oracle (score to beat).
+baselines:
+  - weak
+  - middle
+  - strong
+
+# Seed(s) used for every baseline and every trial.
+seeds:
+  - 0
+
+# Pinned hardware class for reproducibility.
+resources:
+  cpu: 2
+  memory_gb: 4
+  gpu: none

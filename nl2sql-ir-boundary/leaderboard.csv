@@ -1,0 +1,4 @@
+baseline,set_a_execution_accuracy,set_a_component_match,set_b_execution_accuracy,set_b_component_match,set_c_execution_accuracy,set_c_component_match
+weak,0.340000,0.373333,0.320000,0.390000,0.245000,0.000000
+middle,0.496667,0.671667,0.365000,0.470000,0.245000,0.368333
+strong,0.500000,0.683333,0.375000,0.475000,0.490000,0.358333
