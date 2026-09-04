@@ -13,5 +13,6 @@ class SchemaLinker(nn.Module):
     def __init__(self, d):
         super().__init__()
 
-    def build(self, q_sum, schema_repr, schema_graph, lexical, q_repr, q_mask):
+    def build(self, q_sum, schema_repr, schema_graph, lexical, q_repr, q_mask,
+              table_lexical):
         return lexical

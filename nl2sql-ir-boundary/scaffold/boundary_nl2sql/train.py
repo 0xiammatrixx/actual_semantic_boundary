@@ -50,14 +50,23 @@ def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
             for s, nt in enumerate(names_tok):
                 if w in nt:
                     M[vidx, s] = 1.0
-        return col_name_ids, table_of_col, M
+        table_names_tok = [tok(n) for n in schema.tables]
+        MT = torch.zeros(len(vocab), schema.n_tables)
+        for vidx in range(len(vocab)):
+            w = inv.get(vidx, "")
+            if not w:
+                continue
+            for t, nt in enumerate(table_names_tok):
+                if w in nt:
+                    MT[vidx, t] = 1.0
+        return col_name_ids, table_of_col, M, MT
 
-    train_ids, train_toc, train_ml = schema_tensors(train_schema)
-    test_ids, test_toc, test_ml = schema_tensors(test_schema)
+    train_ids, train_toc, train_ml, train_mt = schema_tensors(train_schema)
+    test_ids, test_toc, test_ml, test_mt = schema_tensors(test_schema)
     train_sg = SchemaGraph(train_schema)
     test_sg = SchemaGraph(test_schema)
 
-    def forward(exs, schema_repr, ml, sg, toc):
+    def forward(exs, schema_repr, ml, mt, sg, toc):
         ids = nn.utils.rnn.pad_sequence(
             [torch.tensor([vocab.get(t, 1) for t in e["tokens"]]) for e in exs],
             batch_first=True)
@@ -66,7 +75,8 @@ def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
         q_mask = (ids != 0).float()
         q_sum = (q_repr * q_mask.unsqueeze(2)).sum(1) / q_mask.sum(1, keepdim=True).clamp(min=1)
         lexical = _lexical(ids, ml)
-        relevance = linker.build(q_sum, schema_repr, sg, lexical, q_repr, q_mask)
+        table_lexical = _lexical(ids, mt)
+        relevance = linker.build(q_sum, schema_repr, sg, lexical, q_repr, q_mask, table_lexical)
         return dec(relevance, q_sum, toc, n_tables)
 
     lossfn = nn.CrossEntropyLoss()
@@ -78,7 +88,7 @@ def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
         for i in range(0, len(train_ex), batch):
             exs = train_ex[i:i + batch]
             s_repr = enc.encode_names(train_ids)
-            col_logits, table_logits, agg_logits = forward(exs, s_repr, train_ml, train_sg, train_toc)
+            col_logits, table_logits, agg_logits = forward(exs, s_repr, train_ml, train_mt, train_sg, train_toc)
             g = [e["gold"] for e in exs]
             loss = (lossfn(table_logits, torch.tensor([x["table"] for x in g]))
                     + lossfn(col_logits, torch.tensor([x["select"] for x in g]))
@@ -93,7 +103,7 @@ def train_and_eval(train_ex, test_ex, train_schema, test_schema, conn, vocab,
         s_repr = enc.encode_names(test_ids)
         for i in range(0, len(test_ex), 64):
             exs = test_ex[i:i + 64]
-            col_logits, table_logits, agg_logits = forward(exs, s_repr, test_ml, test_sg, test_toc)
+            col_logits, table_logits, agg_logits = forward(exs, s_repr, test_ml, test_mt, test_sg, test_toc)
             ps, pt, pa = col_logits.argmax(1), table_logits.argmax(1), agg_logits.argmax(1)
             for j, ex in enumerate(exs):
                 g = ex["gold"]

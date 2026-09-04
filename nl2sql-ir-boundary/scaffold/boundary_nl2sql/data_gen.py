@@ -57,9 +57,11 @@ class Schema:
 
 
 def make_schema(rng, n_tables=4, max_cols=3):
-    """Build a schema with globally-unique column names (so lexical match is
-    unambiguous on literal questions). Each table is guaranteed at least one
-    INTEGER non-id column so sum/avg/max/min queries have a numeric measure."""
+    """Build a schema with mostly globally-unique column names plus a few
+    controlled cross-table homonyms (a column name shared by two tables). The
+    shared names make name-only linkers tie, so a relation-aware linker that
+    encodes table membership wins. Each table is guaranteed at least one
+    INTEGER non-id column so aggregate queries have a numeric measure."""
     tables = rng.sample(TABLES, n_tables)
     columns, used, pks, has_int = [], set(), {}, set()
     for t in range(n_tables):
@@ -75,6 +77,16 @@ def make_schema(rng, n_tables=4, max_cols=3):
             if typ == "INT":
                 has_int.add(t)
             columns.append({"table": t, "name": cname, "type": typ})
+    # Cross-table homonyms: table t (t >= 1) gets a copy of one of table 0's
+    # non-id column names, so that name appears in two tables and can only be
+    # resolved via table membership (the schema graph).
+    t0_nonid = [c for c in columns
+                if c["table"] == 0 and not c["name"].endswith("_id")]
+    for i, src in enumerate(t0_nonid):
+        t = i + 1
+        if t >= n_tables:
+            break
+        columns.append({"table": t, "name": src["name"], "type": src["type"]})
     fks = []
     for t in range(1, n_tables):
         parent = rng.randint(0, t - 1)
@@ -193,7 +205,9 @@ def compile_sql(schema, table, sel, agg, join, meas=None):
     tn = schema.tables[table]
     seln = schema.name_of_col[sel]
     if agg == "none":
-        select = seln
+        # Qualify the column for join queries so a cross-table homonym name is
+        # never ambiguous to SQLite.
+        select = f"{tn}.{seln}" if join is not None else seln
     elif agg == "count":
         select = "count(*)"
     else:

@@ -13,5 +13,6 @@ class SchemaLinker(nn.Module):
         super().__init__()
         self.W = nn.Parameter(torch.eye(d))
 
-    def build(self, q_sum, schema_repr, schema_graph, lexical, q_repr, q_mask):
+    def build(self, q_sum, schema_repr, schema_graph, lexical, q_repr, q_mask,
+              table_lexical):
         return q_sum @ self.W @ schema_repr.transpose(0, 1)

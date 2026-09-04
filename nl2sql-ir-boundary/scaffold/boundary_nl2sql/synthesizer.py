@@ -18,6 +18,7 @@ class SchemaGraph:
     def __init__(self, schema):
         self.column_names = schema.name_of_col      # list[str]
         self.table_of_column = schema.table_of_col  # list[int] (table index per column)
+        self.table_names = schema.tables            # list[str] (table name per index)
         self.fk_edges = schema.fks                 # list[(child_col, parent_col)]
         self.n_columns = schema.n_cols
 
@@ -33,17 +34,21 @@ class SchemaLinker(nn.Module):
     """Returns [B, S] linking scores between question and schema columns.
 
     Args:
-        q_sum:        [B, d] question summary (mean-pooled encoder output)
-        schema_repr:  [S, d] column-name embeddings from the fixed encoder
-        schema_graph: SchemaGraph (read-only names / table membership / fk edges)
-        lexical:      [B, S] binary exact string-match matrix (question token
-                      == column-name token)
-        q_repr:       [B, L, d] per-token question embeddings from the encoder
-        q_mask:       [B, L] float mask (1 for real tokens, 0 for padding)
+        q_sum:         [B, d] question summary (mean-pooled encoder output)
+        schema_repr:   [S, d] column-name embeddings from the fixed encoder
+        schema_graph:  SchemaGraph (column names, table membership, fk edges,
+                       table names)
+        lexical:       [B, S] binary exact string-match matrix (question token
+                       == column-name token)
+        q_repr:        [B, L, d] per-token question embeddings from the encoder
+        q_mask:        [B, L] float mask (1 for real tokens, 0 for padding)
+        table_lexical: [B, T] binary exact string-match matrix (question token
+                       == table-name token)
     """
 
     def __init__(self, d):
         super().__init__()
 
-    def build(self, q_sum, schema_repr, schema_graph, lexical, q_repr, q_mask):
+    def build(self, q_sum, schema_repr, schema_graph, lexical, q_repr, q_mask,
+              table_lexical):
         return lexical  # weak baseline: pure lexical string-match
