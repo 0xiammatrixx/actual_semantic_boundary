@@ -14,3 +14,5 @@ proto.py
 measure.py
 measure_results.txt
 results.txt
+nl2sql-ir-boundary/venv/
+venv/

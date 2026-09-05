@@ -75,15 +75,24 @@ never sees in the visible settings — on top of a novel cross-schema.
 - Single-threaded math (`OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`).
 - Hardware class: CPU (no GPU).
 
-## Results (measured with the fixed seed)
+## Results (measured, seeds 0-2)
 
-See `leaderboard.csv`. One aggregate row per baseline across the three settings.
+See `leaderboard.csv` for the recorded seed-0 anchors used by `spec.yaml`.
 
-Composite execution-accuracy anchors (mean over the three settings, seed 0):
-`weak` **0.4600**, `middle` **0.7261**, `strong` **0.7406**. The `middle →
-strong` composite gap is **0.0144**; across five seeds (0–4) the composite gap
-stays positive (min +0.005, mean +0.023), so the oracle ordering does not
-invert. `seeds: [0]` in `spec.yaml` pins the recorded leaderboard to seed 0.
+Composite execution-accuracy anchors (mean of settings a, b, c):
+
+| Seed | weak | middle | strong | middle → strong gap |
+|------|--------|--------|--------|----------------------|
+| 0 | 0.3194 | 0.5678 | 0.7950 | 0.2272 |
+| 1 | 0.3072 | 0.5444 | 0.8189 | 0.2744 |
+| 2 | 0.3361 | 0.5606 | 0.7661 | 0.2056 |
+
+The oracle ordering (`weak < middle < strong`) holds on every individual
+setting and every seed tested; the composite gap never drops below **0.21**
+(min 0.2056, mean 0.2357 across seeds 0-2) — comfortably clear of the 0.01
+minimum-gap requirement. `seeds: [0]` in `spec.yaml` pins the recorded
+leaderboard to seed 0; seeds 1-2 were used only to confirm ordering stability
+and are not part of the submitted anchors.
 
 ## Reduced scale
 

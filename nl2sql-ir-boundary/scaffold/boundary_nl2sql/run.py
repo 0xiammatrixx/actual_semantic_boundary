@@ -16,13 +16,15 @@ def main():
     p = argparse.ArgumentParser(description="Train the fixed NL->SQL model.")
     p.add_argument("--setting", choices=["a", "b", "c"], default="a")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--epochs", type=int, default=25)
     args = p.parse_args()
 
     train_schema, test_schema, train_ex, test_ex, conn, vocab = build_setting(
         args.setting, args.seed)
 
     col_acc, tab_acc, cm, ea = train_and_eval(
-        train_ex, test_ex, train_schema, test_schema, conn, vocab, seed=args.seed)
+        train_ex, test_ex, train_schema, test_schema, conn, vocab,
+        seed=args.seed, epochs=args.epochs)
 
     # Primary metric (execution accuracy) first, secondary (component match) second.
     print(f"TEST_METRICS: {ea:.6f} {cm:.6f}")
